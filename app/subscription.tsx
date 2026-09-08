@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useStripe } from '@stripe/stripe-react-native';
+import { initStripe, useStripe } from '@stripe/stripe-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   useFonts,
@@ -146,6 +146,11 @@ export default function SubscriptionScreen() {
         const params = await subscriptionsService.createPaymentSheet(planId);
         if (!params?.paymentIntentClientSecret) {
           throw new Error('Stripe did not return a checkout session.');
+        }
+        // The publishable key comes from the server, so pointing Stripe at
+        // test or live is a backend env change rather than a rebuild.
+        if (params.publishableKey) {
+          await initStripe({ publishableKey: params.publishableKey });
         }
         const { error: initErr } = await initPaymentSheet({
           merchantDisplayName: 'GetDraft',

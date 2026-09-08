@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useStripe } from '@stripe/stripe-react-native';
+import { initStripe, useStripe } from '@stripe/stripe-react-native';
 import {
   useFonts,
   Poppins_400Regular,
@@ -138,6 +138,11 @@ export default function BuySwipesScreen() {
         const params = await subscriptionsService.buySwipePackSheet(pack.id);
         if (!params?.paymentIntentClientSecret) {
           throw new Error('Stripe did not return a payment session.');
+        }
+        // The publishable key comes from the server, so pointing Stripe at
+        // test or live is a backend env change rather than a rebuild.
+        if (params.publishableKey) {
+          await initStripe({ publishableKey: params.publishableKey });
         }
         const { error: initErr } = await initPaymentSheet({
           merchantDisplayName: 'GetDraft',
