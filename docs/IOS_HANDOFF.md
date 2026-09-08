@@ -12,13 +12,18 @@ this repo.
 |---|---|---|
 | 1 | **Repo access** | branch `master` |
 | 2 | **EAS access** | project `getdraft` under the `getdraft2` org. Ask to be added, or use the owner account |
-| 3 | **Apple Developer account** | the client's. Team ID `89884BGNZR` is already in `eas.json` |
+| 3 | **Apple Developer account** | the client's. Team ID `NH82KPKHVK` is already in `eas.json` |
 | 4 | **App Store Connect access** | to create the app record and the listing |
-| 5 | **`.env` files** | `backend/.env` is gitignored. You do **not** need it — see below |
+| 5 | **`.env` files** | gitignored, sent separately and encrypted — see `docs/HANDOVER_PROJECT_LEAD.md` |
 
-**You almost certainly don't need backend access.** The API is live at
-`https://api.getdraft.net/api` and is shared with Android. Nothing
+**If you are only building iOS**, you do not need backend access: the API is
+live at `https://api.getdraft.net/api`, shared with Android, and nothing
 server-side has to change for iOS.
+
+**If you are taking over the project**, you do — the store-billing endpoint
+still has to be deployed, and Railway is the awkward part. Read
+`docs/HANDOVER_PROJECT_LEAD.md`, which is the full access map and the
+outstanding-work list.
 
 **Reviewer test account** (same one Google uses):
 `+213558780131` / code `123456` — pre-onboarded recruiter, `pro` plan.
@@ -46,26 +51,38 @@ Don't redo these:
 
 ## What is NOT done
 
-### 1. In-app purchases are switched OFF on iOS
+### 1. In-app purchases are written, but switched off
 
-`constants/purchases.ts` gates `PURCHASES_ENABLED` to false on iOS.
+**Updated 2026-09-08 — this section used to say iOS had no purchase path at
+all. It now does.** StoreKit (iOS) and Play Billing (Android) are implemented
+through `react-native-iap`, with server-side receipt verification:
 
-This is deliberate. Subscriptions and Draft packs are digital goods sold
-through **Stripe's PaymentSheet** — a full third-party purchase flow inside
-the app. Apple enforces StoreKit for digital goods far more strictly than
-Google enforces Play Billing, and rejection on a first submission is likely.
+```
+services/billing.ts                     buys and restores
+POST /api/billing/validate              verifies with Apple / Google, then grants
+backend/src/modules/store-billing/      the verification + entitlement
+```
 
-So the first iOS build ships with purchases hidden. **An approved iOS app
-with no purchases beats no iOS app at all.**
+No third party sits in the payment path — no RevenueCat, nothing. Stripe stays
+on **web only**, where neither store's rules apply.
 
-If the client wants payments on iOS, that means **implementing StoreKit /
-`expo-in-app-purchases` and wiring it to the existing subscription backend**.
-That is the single biggest piece of iOS-only work. The backend already models
-plans (`basic` / `starter` / `pro`) and swipe packs (10 / 50 / 100), so the
-work is the client side plus a receipt-validation endpoint.
+Three things still gate it, and all three are outside the code:
+
+1. **`EXPO_PUBLIC_IAP_ENABLED` is unset**, so both platforms currently sell
+   nothing. That is the safe state: an app with no purchase flow passes
+   review, an app with a broken one does not.
+2. **The five store products do not exist yet** on either store. IDs must
+   match exactly across both — see `docs/BILLING_PRODUCTS_SPEC.md`.
+3. **`POST /api/billing/validate` returns 404 in production.** The module is
+   merged but has never been deployed. Deploy before switching the flag on.
+
+⚠️ **The build sitting in Apple review predates the fix in `c5807ba`.** In it,
+the signup plan step could still open Stripe's payment sheet on iOS —
+Guideline 3.1.1, an automatic rejection. **Rebuild from `master` before
+resubmitting.**
 
 Read the comment block at the top of `constants/purchases.ts` before changing
-the flag — it records why the risk was taken on Android and not on iOS.
+any flag; it records which surface is allowed to sell what, and why.
 
 ### 2. Push notifications need APNs
 
@@ -121,11 +138,11 @@ profiles, posts and chat.
 Repo branch        master
 API                https://api.getdraft.net/api
 Bundle ID          com.getdraft.app
-Apple Team ID      89884BGNZR
+Apple Team ID      NH82KPKHVK
 EAS project        getdraft  (org: getdraft2)
 Build              npx eas build --platform ios --profile production
 Reviewer login     +213558780131 / 123456
-Android status     1.0.0 (39) in review on Google Play
+Android status     1.0.0 (39) LIVE on Google Play
 ```
 
 Useful docs in this repo:
