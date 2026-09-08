@@ -118,6 +118,37 @@ no seat for the agency. Two consequences:
   runners instead. It needs one secret, `RAILWAY_TOKEN`, which nobody has
   created yet because it requires a paid Railway project.
 
+### #11 has a trap in the development profile
+
+`EXPO_PUBLIC_MAPBOX_TOKEN` is not in the repo. `.env` is gitignored, and EAS
+uses `.gitignore` to decide what to upload, so cloud builds read it from the
+EAS-hosted environment instead:
+
+```
+production   set
+preview      set
+development  EMPTY   <-- this one
+```
+
+All three should hold the same token, and the first two do. **A
+`--profile development` build has no Mapbox token**, which means the Globe tab
+and every country / region / school search silently return nothing — no error,
+just an empty map. That is the first build an iOS developer typically makes,
+so it will look like a bug in the Globe.
+
+Fix it once:
+
+```bash
+npx eas env:create development \
+  --name EXPO_PUBLIC_MAPBOX_TOKEN --value pk.… --visibility plaintext
+```
+
+The token is public by design — it ships inside the bundle, so anyone who
+unzips the APK can read it. What protects it is a **URL / bundle-id
+restriction set in the Mapbox dashboard**, which is worth confirming is
+actually in place, because an unrestricted public token is billable by anyone
+who finds it.
+
 ---
 
 ## 4. Verify your access actually works
